@@ -15,33 +15,73 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [isSignup, setIsSignup] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSendOTP = () => {
+  const API_URL = 'http://localhost:8000/api';
+
+  const handleSendOTP = async () => {
     if (phoneNumber.length >= 10) {
-      setStep('otp');
+      setLoading(true);
+      setError('');
+      try {
+        const response = await fetch(`${API_URL}/send-otp`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ phone_number: phoneNumber }),
+        });
+        const data = await response.json();
+        if (data.success) {
+          setStep('otp');
+        } else {
+          setError(data.message || 'Failed to send OTP.');
+        }
+      } catch (err) {
+        setError('Network error. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
-  const handleVerifyOTP = () => {
+  const handleVerifyOTP = async () => {
     if (otp.length === 6) {
-      onLogin();
+      setLoading(true);
+      setError('');
+      try {
+        const response = await fetch(`${API_URL}/verify-otp`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ phone_number: phoneNumber, otp: otp }),
+        });
+        const data = await response.json();
+        if (data.success) {
+          console.log('Login successful! Token:', data.token);
+          onLogin();
+        } else {
+          setError(data.detail || data.message || 'OTP verification failed.');
+        }
+      } catch (err) {
+        setError('Network error. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-space flex items-center justify-center relative overflow-hidden">
-      {/* Background Image with Overlay */}
-      <div 
+      <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-30"
         style={{ backgroundImage: `url(${heroBackground})` }}
       />
       <div className="absolute inset-0 bg-background/50" />
-      
-      {/* Animated Scan Line Effect */}
       <div className="absolute top-0 left-0 h-0.5 w-full bg-gradient-to-r from-transparent via-primary to-transparent animate-scan opacity-60" />
-      
       <div className="relative z-10 w-full max-w-md px-6">
-        {/* Header Section */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <div className="p-3 rounded-full bg-primary/20 animate-glow-pulse">
@@ -56,20 +96,19 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
             "Stay safe with real-time cloudburst alerts."
           </p>
         </div>
-
-        {/* Login Card */}
         <Card className="shadow-card border-border/50 bg-card/80 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-center text-foreground">
               {isSignup ? 'Create Account' : 'Secure Login'}
             </CardTitle>
             <CardDescription className="text-center text-muted-foreground">
-              {step === 'phone' 
-                ? 'Enter your phone number to receive OTP' 
+              {step === 'phone'
+                ? 'Enter your phone number to receive OTP'
                 : 'Enter the 6-digit verification code'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
             {step === 'phone' ? (
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -86,12 +125,12 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
                     />
                   </div>
                 </div>
-                <Button 
+                <Button
                   onClick={handleSendOTP}
                   className="w-full bg-gradient-primary hover:shadow-glow-primary transition-all duration-300"
-                  disabled={phoneNumber.length < 10}
+                  disabled={phoneNumber.length < 10 || loading}
                 >
-                  Send OTP
+                  {loading ? 'Sending...' : 'Send OTP'}
                 </Button>
               </div>
             ) : (
@@ -111,14 +150,14 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
                     />
                   </div>
                 </div>
-                <Button 
+                <Button
                   onClick={handleVerifyOTP}
                   className="w-full bg-gradient-primary hover:shadow-glow-primary transition-all duration-300"
-                  disabled={otp.length !== 6}
+                  disabled={otp.length !== 6 || loading}
                 >
-                  Verify & Login
+                  {loading ? 'Verifying...' : 'Verify & Login'}
                 </Button>
-                <Button 
+                <Button
                   variant="outline"
                   onClick={() => setStep('phone')}
                   className="w-full border-border hover:border-primary hover:shadow-glow-primary transition-all duration-300"
@@ -127,8 +166,6 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
                 </Button>
               </div>
             )}
-
-            {/* Footer Links */}
             <div className="pt-4 border-t border-border/30 space-y-3">
               <Button
                 variant="ghost"
@@ -148,8 +185,6 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
             </div>
           </CardContent>
         </Card>
-
-        {/* Security Notice */}
         <div className="mt-6 text-center">
           <p className="text-xs text-muted-foreground">
             🔒 Secured by military-grade encryption
